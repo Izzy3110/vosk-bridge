@@ -1,3 +1,4 @@
+import os
 import subprocess
 import threading
 import time
@@ -45,7 +46,7 @@ class VoskServer(threading.Thread):
     def log_to_file(self, line):
         # print("ltf: "+line)
         if self.vosk_log_file_f is None:
-            self.vosk_log_file_f = open("vosk.log", "a")
+            self.vosk_log_file_f = open("logs/vosk.log", "a")
         self.vosk_log_file_f.write(line + "\n")
 
         self.vosk_lines.append(line)
@@ -54,7 +55,8 @@ class VoskServer(threading.Thread):
 
     def __init__(self, socketio_):
         self.socketio = socketio_
-        self.vosk_log_file_f = open("vosk.log", "a")
+
+        self.vosk_log_file_f = open("logs/vosk.log", "a")
         self.vosk_start_t = time.time()
         self.vosk_lines = []
         super(VoskServer, self).__init__()
@@ -63,7 +65,7 @@ class VoskServer(threading.Thread):
         print("VS")
         while self.running is True:
             if self.started is False:
-                with subprocess.Popen("python asr_server.py", shell=True, stdout=subprocess.PIPE,
+                with subprocess.Popen("python components/asr_server.py", shell=True, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE) as ps:
 
                     while True:

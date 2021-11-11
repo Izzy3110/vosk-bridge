@@ -5,9 +5,9 @@ import tornado.ioloop
 import tornado.web
 from tornado.options import define, options, parse_command_line
 
-from handler import VideoHandler, MainHandler
-from sio_stuff import *
-from mytasks import background_task
+from components.handler import VideoHandler, MainHandler
+from components.sio.sio_stuff import *
+from components.mytasks import background_task
 
 define("port", default=5000, help="run on the given port", type=int)
 define("debug", default=False, help="run in debug mode")

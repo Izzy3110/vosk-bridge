@@ -2,11 +2,11 @@ import base64
 from threading import Lock
 
 from config import QOS
-from modules import VoskServer, MQTTEvents, mqtt_client
-from mytasks import background_task
+from components.modules import mqtt_client
+from components.mytasks import background_task
 
 import socketio
-from modules import VoskServer
+from components.modules import VoskServer
 thread = None
 thread_lock = Lock()
 

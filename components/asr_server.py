@@ -100,7 +100,7 @@ if __name__ == '__main__':
         #     GpuInstantiate()
         # pool = concurrent.futures.ThreadPoolExecutor(initializer=thread_init)
 
-        model = Model("model")#Model(args.model_path if args else "model")
+        model = Model("components/model")#Model(args.model_path if args else "model")
         # spk_model = SpkModel(args.spk_model_path) if args.spk_model_path else None
 
         pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
