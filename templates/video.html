@@ -1,0 +1,714 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>python-socketio test</title>
+        <style>
+
+    body {
+        color: #EFEFEF;
+        background: #000;
+    }
+
+    #canvas {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    audio {
+      position: fixed;
+      left: 10px;
+      bottom: 10px;
+      width: calc(100% - 20px);
+    }
+
+    .circleBase {
+        border-radius: 2%;
+        height: 8px !important;
+        behavior: url(PIE.htc); /* remove if you don't care about IE8 */
+    }
+
+    .type1 {
+        width: 100px;
+        height: 100px;
+        background: yellow;
+        border: 3px solid red;
+    }
+    .type2 {
+        width: 50px;
+        height: 50px;
+        background: #ccc;
+        border: 3px solid #000;
+    }
+    .type3 {
+        width: 500px;
+        height: 500px;
+        background: aqua;
+        border: 30px solid blue;
+    }
+
+    .type4 {
+        width: 50px;
+        height: 50px;
+        border: 6px solid #373737;
+    }
+
+    .offline {
+        background: #F00;
+    }
+
+    .online {
+        background: #0F0;
+    }
+
+    #overlay {
+        width: 500px;
+        height: 30px;
+        background: #000;
+        color: #ECECEC;
+        opacity: 0;
+    }
+
+    .pids-wrapper {
+        min-height: 500px;
+    }
+
+    .pid {
+        width: 50px;
+        height: 50px;
+    }
+
+    #container {
+        margin: 0px auto;
+        width: 500px;
+        height: 375px;
+        border: 10px #333 solid;
+    }
+
+    </style>
+    <script type="text/javascript" src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/static/volume-meter.js"></script>
+    <script type="text/javascript" src="/static/jquery.easing.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
+
+
+</head>
+<body>
+<div id="overlay">Microphone Level show activity.</div>
+    <div id="on_offline" class="circleBase type4 offline"></div>
+    <canvas id="canvas"></canvas>
+<div class="pids-wrapper">
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+  <div class="pid"></div>
+</div>
+<button class="btn btn-default" id="recordBtn">Record Voice</button>
+    <div id="vosk_log" style="overflow: hidden; min-height: 250px;"></div>
+<div id="log" style="overflow: hidden; min-height: 250px;"></div>
+
+
+
+    <script type="text/javascript" charset="utf-8">
+
+    var audioElement = document.createElement('audio');
+    audioElement.setAttribute('src', '');
+    audioElement.setAttribute('controls', '');
+    audioElement.volume = 0.2
+    var time_tmp = 0
+    var clicked_record = false;
+    var is_recording = false;
+
+    audioElement.addEventListener("canplay",function(){
+        $("#length").text("Duration:" + audioElement.duration + " seconds");
+        $("#source").text("Source:" + audioElement.src);
+        $("#status").text("Status: Ready to play").css("color","green");
+    });
+
+    audioElement.addEventListener("timeupdate",function(){
+        $("#currentTime").text("Current second:" + audioElement.currentTime);
+        $("#length").text("Duration:" + audioElement.duration + " seconds");
+    });
+
+    $("#volume").on("change", function(ev) {
+        console.log(parseFloat($(this).val()))
+        audioElement.volume = parseFloat($(this).val() / 100);
+    })
+
+    $('#play').click(function() {
+        audioElement.play();
+        $("#status").text("Status: Playing");
+    });
+
+    $('#pause').click(function() {
+        audioElement.pause();
+        $("#status").text("Status: Paused");
+    });
+
+    $('#restart').click(function() {
+        audioElement.currentTime = 0;
+    });
+
+    $("#player_").append(audioElement)
+    $("#player_ > audio").css( {
+
+    "width": "100%",
+    "height": "500px"
+    })
+
+    var audio = audioElement
+    //audio.src = URL.createObjectURL(files[0]);
+    audio.load();
+    audio.volume = 0.2;
+
+    //audio.play();
+    var context = new AudioContext();
+    var src = context.createMediaElementSource(audio);
+    var analyser = context.createAnalyser();
+
+    var canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    var ctx = canvas.getContext("2d");
+    $(canvas).css({
+    // "opacity": 0.2,
+    "z-index": "-50"
+    })
+    src.connect(analyser);
+    analyser.connect(context.destination);
+
+    analyser.fftSize = 512;
+
+    var bufferLength = analyser.frequencyBinCount;
+    console.log(bufferLength);
+
+    var dataArray = new Uint8Array(bufferLength);
+
+    var WIDTH = canvas.width;
+    var HEIGHT = canvas.height;
+
+    var barWidth = (WIDTH / bufferLength) * 1.5;
+    var barHeight;
+    var x = 0;
+
+    var emnit_voice = false;
+    function emit_voice_() {
+
+    }
+
+    function renderFrame() {
+      requestAnimationFrame(renderFrame);
+
+      x = 0;
+
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      for (var i = 0; i < bufferLength; i++) {
+        barHeight = dataArray[i];
+
+        var r = barHeight + (25 * (i/bufferLength));
+        var g = 250 * (i/bufferLength);
+        var b = 50;
+
+        ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+        ctx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+
+        x += barWidth + 1;
+      }
+    }
+
+    renderFrame();
+
+
+   function get_last_message() {
+        if (messages.length > 0) {
+            return messages[messages.length-1]
+        } else {
+            return false;
+        }
+
+   }
+
+   function get_last_message_by(index) {
+        return typeof(messages[index-1]) !== 'undefined' && messages.length > 0 ? messages[index-1] : false;
+   }
+
+   function stopTracks() {
+    localStream.getTracks().forEach( (track) => {
+        track.stop();
+    });
+    if( localStream.getVideoTracks().length > 0 ) {
+        localStream.getVideoTracks().forEach( (track) => {
+            console.log("stop")
+            console.log(track)
+            track.stop();
+
+        });
+    }
+}
+
+
+/**
+ * Callback triggered if the microphone permission is denied
+ */
+function onMicrophoneDenied() {
+    alert('Stream generation failed.');
+}
+
+function colorPids(vol) {
+  let all_pids = $('.pid');
+  let amout_of_pids = Math.round(vol/10);
+  let elem_range = all_pids.slice(0, amout_of_pids)
+
+  for (var i = 0; i < all_pids.length; i++) {
+    all_pids[i].style.backgroundColor="#e6e7e8";
+  }
+  for (var i = 0; i < elem_range.length; i++) {
+
+    // console.log(elem_range[i]);
+    elem_range[i].style.backgroundColor="#69ce2b";
+  }
+}
+
+/**
+ * Callback triggered if the access to the microphone is granted
+ */
+function onMicrophoneGranted(stream) {
+    // Create an AudioNode from the stream.
+    mediaStreamSource = audioContext.createMediaStreamSource(stream);
+    var options = {
+        audioBitsPerSecond: 128000,
+        videoBitsPerSecond: 2500000,
+        mimeType: 'audio/webm'
+    }
+    var mediaRecorder = new MediaRecorder(stream, options);
+    var meter_up = false;
+    var meter_down_count = 0;
+    mediaRecorder.addEventListener('dataavailable', event => {
+      if (event.data.size > 0 && is_recording) {
+            if(socket.connected) {
+            var arr_ = window.location.toString().split("/")
+            var index_ = false
+            for(var i = 0; i < arr_.length; i++) {
+                if(arr_[i] == "video") {
+                    index_ = i+1
+                    break
+                }
+            }
+            // console.log(meter_down_count)
+            if(meter.volume > 0.001) {
+                meter_up = true
+                if(meter_down_count > 0) {
+                    meter_down_count = 0
+                }
+            } else {
+
+                if(meter_down_count >= 5) {
+                    meter_up = false
+                    meter_down_count = 0
+                } else {
+                    meter_down_count++
+                }
+
+            }
+            // console.log(meter_up)
+
+            if(index_ != false && meter_up) {
+                socket.emit("my_voice", {"data": event.data, "sid": $("#canvas").attr('data-sid'), "room_uuid": arr_[index_]})
+            }
+
+
+            }
+      }
+    });
+    console.log(mediaRecorder)
+    mediaRecorder.addEventListener('dataavailable', null)
+    console.log(mediaRecorder)
+    mediaRecorder.start(1000);
+
+
+    // Create a new volume meter and connect it.
+    meter = createAudioMeter(audioContext);
+    mediaStreamSource.connect(meter);
+
+    audioContext = new AudioContext();
+      analyser = audioContext.createAnalyser();
+      microphone = audioContext.createMediaStreamSource(stream);
+      javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 1024;
+
+      microphone.connect(analyser);
+      analyser.connect(javascriptNode);
+      javascriptNode.connect(audioContext.destination);
+      javascriptNode.onaudioprocess = function() {
+          var array = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(array);
+          var values = 0;
+
+          var length = array.length;
+          for (var i = 0; i < length; i++) {
+            values += (array[i]);
+          }
+
+          var average = values / length;
+
+        //console.log(Math.round(average));
+       colorPids(average);
+      }
+
+
+
+    // Trigger callback that shows the level of the "Volume Meter"
+    onLevelChange();
+}
+
+
+
+
+function onLevelChange(time) {
+    if(meter.volume <= 0.0001) {
+        if($("#on_offline").hasClass("online")) {
+            $("#on_offline").removeClass("online").addClass("offline");
+            $("#overlay").stop().animate({
+            "opacity": 0
+            }, 150, "", function() {
+
+                status_ = false
+                socket.emit('audio_event', {"mic_status":0});
+            })
+        }
+    } else {
+        if($("#on_offline").hasClass("offline")) {
+            $("#on_offline").removeClass("offline").addClass("online")
+            $("#overlay").stop().animate({
+            "opacity": 1
+            }, 750, "", function() {
+
+                status_ = true
+                socket.emit('audio_event', {"mic_status":1});
+            })
+
+        }
+    }
+
+    // set up the next callback
+    rafID = window.requestAnimationFrame(onLevelChange);
+}
+
+
+
+
+
+    var new_message_tmp = ""
+    var messages_last_set = "";
+    var messages_last_set_index = false;
+
+
+    var socket = io();
+    var sid_ = null;
+    socket.on("open", function() {
+    console.log("opened")
+    })
+    var messages = []
+
+
+
+
+/**
+ * Create global accessible variables that will be modified later
+ */
+var audioContext = null;
+var meter = null;
+var rafID = null;
+var mediaStreamSource = null;
+
+// Retrieve AudioContext with all the prefixes of the browsers
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+// Get an audio context
+audioContext = new AudioContext();
+
+
+
+
+
+    // Retrieve getUserMedia API with all the prefixes of the browsers
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+    // Ask for an audio input
+    navigator.getUserMedia(
+        {
+            "audio": {
+                "mandatory": {
+                    "googEchoCancellation": "false",
+                    "googAutoGainControl": "false",
+                    "googNoiseSuppression": "false",
+                    "googHighpassFilter": "false"
+                },
+                "optional": []
+            },
+        },
+        onMicrophoneGranted,
+        onMicrophoneDenied
+    )
+
+    $(document).on('mousedown', function(ev) {
+
+        if(ev.target.id == "recordBtn") {
+            clicked_record = !clicked_record
+
+        }
+    })
+
+    $(document).on('mouseup', function(ev) {
+        if(clicked_record == true) {
+            if(ev.target.id == "recordBtn") {
+                $(ev.target).html("recording...(click to stop)")
+                socket.emit('audio_event', {"client":$("#canvas").attr("data-sid"), "data": {"is_recording": true}});
+                is_recording = true
+            } else {
+                console.log("aborting")
+                socket.emit('audio_event', {"client":$("#canvas").attr("data-sid"), "data": {"is_recording": false}});
+                is_recording = false
+            }
+        } else {
+            if(ev.target.id == "recordBtn") {
+                $(ev.target).html("Record Voice")
+                socket.emit('audio_event', {"client":$("#canvas").attr("data-sid"), "data": {"is_recording": false}});
+                is_recording = false
+            }
+        }
+    })
+
+    $(document).keydown(function(e) {
+        switch (e.which) {
+
+            case 27: // esc
+                if(e.target.id == "message") {
+
+                    $("#message").val("")
+                    messages = []
+                }
+
+
+            break;
+            case 37: // left
+            break;
+
+            case 38: // up
+                if(e.target.id == "message") {
+                    if(messages_last_set.length == 0) {
+                        messages_last_set = get_last_message()
+                    } else {
+                        if(messages_last_set != get_last_message()) {
+                            messages_last_set = get_last_message()
+                            if(messages_last_set_index == false) {
+                                messages_last_set_index = messages.length-1
+                            }
+                        } else {
+                            if (messages_last_set_index >= 0) {
+                                messages_last_set_index--;
+                                if(new_message_tmp.length == 0) {
+                                    new_message_tmp = get_last_message_by(messages_last_set_index)
+                                } else {
+                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
+                                        console.log(messages)
+                                        console.log(messages.length)
+
+                                    }
+                                }
+                                if(get_last_message_by(messages_last_set_index) == false) {
+                                    messages_last_set_index = messages.length
+                                }
+                                var new_message = get_last_message_by(messages_last_set_index) != false ? get_last_message_by(messages_last_set_index) : "abc"
+
+                                // console.log(messages_last_set_index)
+                                // console.log("len : "+messages.length)
+                                // console.log(messages)
+                            } else {
+                                messages_last_set_index = messages.length
+
+                                if(new_message_tmp.length == 0) {
+                                    new_message_tmp = get_last_message_by(messages_last_set_index)
+                                } else {
+                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
+                                        console.log(messages)
+                                        console.log(messages.length)
+
+                                    }
+                                }
+                                if(get_last_message_by(messages_last_set_index) == false) {
+                                    messages_last_set_index = messages.length
+                                }
+                                var new_message = get_last_message_by(messages_last_set_index) != false ? get_last_message_by(messages_last_set_index) : "abc"
+                            }
+
+                        }
+
+
+
+                    }
+                    if(typeof(new_message) !== 'undefined') {
+                        $("#message").val(new_message)
+                    } else {
+                        $("#message").val(get_last_message() != false ? get_last_message() : "")
+                    }
+
+                }
+                break;
+
+            case 39: // right
+                break;
+
+            case 40: // down
+                if(e.target.id == "message") {
+                    if(messages_last_set.length == 0) {
+                        messages_last_set = get_last_message()
+                    } else {
+                        if(messages_last_set != get_last_message()) {
+                            messages_last_set = get_last_message()
+                            if(messages_last_set_index == false) {
+                                messages_last_set_index = messages.length-1
+                            }
+                        } else {
+                            if (messages_last_set_index >= 0) {
+                                messages_last_set_index++;
+                                if(new_message_tmp.length == 0) {
+                                    new_message_tmp = get_last_message_by(messages_last_set_index)
+                                } else {
+                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
+                                        console.log(messages)
+                                        console.log(messages.length)
+
+                                    }
+                                }
+                                if(get_last_message_by(messages_last_set_index) == false) {
+                                    messages_last_set_index = 0
+                                }
+                                var new_message = get_last_message_by(messages_last_set_index) != false ? get_last_message_by(messages_last_set_index) : "abc"
+
+                                // console.log(messages_last_set_index)
+                                // console.log("len : "+messages.length)
+                                // console.log(messages)
+                            } else {
+                                messages_last_set_index = messages.length
+
+                                if(new_message_tmp.length == 0) {
+                                    new_message_tmp = get_last_message_by(messages_last_set_index)
+                                } else {
+                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
+                                        console.log(messages)
+                                        console.log(messages.length)
+
+                                    }
+                                }
+                                if(get_last_message_by(messages_last_set_index) == false) {
+                                    messages_last_set_index = 0
+                                }
+                                var new_message = get_last_message_by(messages_last_set_index) != false ? get_last_message_by(messages_last_set_index) : "abc"
+                            }
+
+                        }
+
+
+
+                    }
+                    if(typeof(new_message) !== 'undefined') {
+                        $("#message").val(new_message)
+                    } else {
+                        $("#message").val(get_last_message() != false ? get_last_message() : "")
+                    }
+
+                }
+                break;
+
+            default:
+                return; // exit this handler for other keys
+        }
+        e.preventDefault(); // prevent the default action (scroll / move caret)
+    })
+
+
+    $(document).ready(function() {
+        // Connect to the Socket.IO server.
+        // The connection URL has the following format, relative to the current page:
+        //     http[s]://<domain>:<port>[/<namespace>]
+
+        // Event handler for new connections.
+        // The callback function is invoked when a connection with the
+        // server is established.
+        socket.on('connect', function(data_) {
+            socket.emit('my_event', {data: 'I\'m connected!'});
+            // console.log(data_)
+
+            socket.emit("get_my_sid");
+
+        });
+        socket.on('my_sid', function(msg, cb) {
+        var sid = msg
+            $("#canvas").attr("data-sid", sid)
+        })
+        socket.on('last_vosk_lines', function(msg, cb) {
+            $('#vosk_log').html("")
+            $.each(msg.data, function(index, line) {
+                $('#vosk_log').append('<br>' + $('<div/>').text(line).html());
+            })
+            if (cb)
+                cb();
+        });
+
+        socket.on('my_vosk_log', function(msg, cb) {
+
+            $('#vosk_log').append('<br>' + $('<div/>').text(msg.data).html());
+            if (cb)
+                cb();
+        });
+
+        socket.on('my_response', function(msg, cb) {
+            if(msg.data == "Connected") {
+                sid_ = msg.sid
+                socket.emit("init_ctrl", {"data": "get_last_vosk_logs"})
+            }
+            $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+                if($("#form_sid").length > 0) {
+                    $("#form_sid").val(btoa(msg["sid"]))
+                    console.log($("#form_sid"))
+                }
+            if (cb)
+                cb();
+        });
+
+        $('#message').keypress(function (e) {
+          if (e.which == 13) {
+
+          if($("#message").val().length > 0) {
+                console.log("emitto")
+                socket.emit("my_broadcast_event", {data: $("#message").val()})
+            } else {
+                console.error("no message")
+            }
+
+            messages.push($('#message').val())
+            messages_last_set_index = messages.length
+            $('#message').val('')
+
+          }
+        });
+    });
+    </script>
+</body>
+</html>
