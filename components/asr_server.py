@@ -69,7 +69,15 @@ async def recognize(websocket, path):
         if stop: break
 
 
-if __name__ == '__main__':
+
+def start():
+
+    global model
+    global spk_model
+    global args
+    global loop
+    global pool
+
     # Enable loging if needed
     #
     # logger = logging.getLogger('websockets')
@@ -77,40 +85,40 @@ if __name__ == '__main__':
     # logger.addHandler(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO)
 
-    # args = type('', (), {})()
-    '''
+    args = type('', (), {})()
+
     args.interface = os.environ.get('VOSK_SERVER_INTERFACE', '0.0.0.0')
     args.port = int(os.environ.get('VOSK_SERVER_PORT', 2700))
-    args.model_path = os.environ.get('VOSK_MODEL_PATH', 'model')
+    args.model_path = os.environ.get('VOSK_MODEL_PATH', 'components/model')
     args.spk_model_path = os.environ.get('VOSK_SPK_MODEL_PATH')
-    args.sample_rate = float(os.environ.get('VOSK_SAMPLE_RATE', 8000))
+    args.sample_rate = float(os.environ.get('VOSK_SAMPLE_RATE', 16000))
     args.max_alternatives = int(os.environ.get('VOSK_ALTERNATIVES', 0))
     args.show_words = bool(os.environ.get('VOSK_SHOW_WORDS', True))
-    '''
-    if len(sys.argv) == 1:
 
-        #if len(sys.argv) > 1:
-        #    args.model_path = sys.argv[1]
+    if len(sys.argv) > 1:
+       args.model_path = sys.argv[1]
 
-        # Gpu part, uncomment if vosk-api has gpu support
-        #
-        # from vosk import GpuInit, GpuInstantiate
-        # GpuInit()
-        # def thread_init():
-        #     GpuInstantiate()
-        # pool = concurrent.futures.ThreadPoolExecutor(initializer=thread_init)
+    # Gpu part, uncomment if vosk-api has gpu support
+    #
+    # from vosk import GpuInit, GpuInstantiate
+    # GpuInit()
+    # def thread_init():
+    #     GpuInstantiate()
+    # pool = concurrent.futures.ThreadPoolExecutor(initializer=thread_init)
 
-        model = Model("components/model")#Model(args.model_path if args else "model")
-        # spk_model = SpkModel(args.spk_model_path) if args.spk_model_path else None
+    model = Model(args.model_path)
+    spk_model = SpkModel(args.spk_model_path) if args.spk_model_path else None
 
-        pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
-        loop = asyncio.get_event_loop()
+    pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
+    loop = asyncio.get_event_loop()
 
-        start_server = websockets.serve(
-            recognize, "0.0.0.0", 2700)
+    start_server = websockets.serve(
+        recognize, args.interface, args.port)
 
-        logging.info("Listening on %s:%d", "0.0.0.0", 2700)
-        loop.run_until_complete(start_server)
-        loop.run_forever()
-    else:
-        print("no")
+    logging.info("Listening on %s:%d", args.interface, args.port)
+    loop.run_until_complete(start_server)
+    loop.run_forever()
+
+
+if __name__ == '__main__':
+    start()

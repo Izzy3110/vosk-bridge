@@ -3,6 +3,7 @@ import sys
 import asyncio
 import tornado.ioloop
 import tornado.web
+import websockets
 from tornado.options import define, options, parse_command_line
 
 from components.handler import VideoHandler, MainHandler

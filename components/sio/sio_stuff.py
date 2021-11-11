@@ -82,6 +82,7 @@ clients_recording_status = {}
 async def connect(sid, environ, _):
     global vs_
     if vs_ is None:
+        print("starting vosk")
         vs_ = VoskServer(sio)
         vs_.start()
     global thread
