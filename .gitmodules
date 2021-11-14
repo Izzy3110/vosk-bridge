@@ -1,3 +1,0 @@
-[submodule "components/vosk-server"]
-	path = components/vosk-server
-	url = https://github.com/alphacep/vosk-server

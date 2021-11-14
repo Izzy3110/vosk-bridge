@@ -1,11 +1,9 @@
 from abc import ABC
-
 import tornado
 import uuid
 
 
 class VideoHandler(tornado.web.RequestHandler, ABC):
-
     def set_default_headers(self):
         print
         ("setting headers!!!")
