@@ -3,3 +3,4 @@ __pycache__/
 logs/
 venv/
 tmp_wav.wav
+examples_and_3rdparty/ffmpeg-4.4.1-full_build/
