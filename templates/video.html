@@ -2,6 +2,9 @@
 <html>
 <head>
     <title>video test</title>
+    <link rel="stylesheet" href="/static/fontawesome-free-5.15.4-web/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/static/fontawesome-free-5.15.4-web/css/brands.min.css">
+    <link rel="stylesheet" href="/static/fontawesome-free-5.15.4-web/css/solid.min.css">
         <style>
 
     body {
@@ -16,13 +19,14 @@
       width: 100%;
       height: 100%;
     }
-
+/*
     audio {
       position: fixed;
       left: 10px;
       bottom: 10px;
       width: calc(100% - 20px);
     }
+    */
 
     .circleBase {
         border-radius: 2%;
@@ -92,6 +96,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="/static/volume-meter.js"></script>
     <script type="text/javascript" src="/static/jquery.easing.min.js"></script>
+    
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
 
 
@@ -99,7 +104,7 @@
 <body>
 <div id="overlay">Microphone Level show activity.</div>
     <div id="on_offline" class="circleBase type4 offline"></div>
-    <canvas id="canvas"></canvas>
+    <canvas style="z-index: -3" id="canvas"></canvas>
 <div class="pids-wrapper">
   <div class="pid"></div>
   <div class="pid"></div>
@@ -112,98 +117,134 @@
   <div class="pid"></div>
   <div class="pid"></div>
 </div>
-<button class="btn btn-default" id="recordBtn">Record Voice</button>
-    <div id="vosk_log" style="overflow: hidden; min-height: 250px;"></div>
+<div id="testDiv"></div>
+<!-- <button class="btn btn-default" id="recordBtn">Record Voice</button> -->
+    <button id="startRecordingButton">Start recording</button>
+    <button id="stopRecordingButton">Stop recording</button>
+    <!-- <button id="playButton">Play</button> -->
+    <div id="audioContainer">
+    </div>
+    
+
+<div id="vosk_log" style="overflow: hidden; min-height: 250px;"></div>
 <div id="log" style="overflow: hidden; min-height: 250px;"></div>
+<style>
+
+@charset "UTF-8";
+.player {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 60px;
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  border-radius: 2px;
+  padding: 5 16px;
+  margin-bottom: 1vh;
+}
+.player img {
+  width: 64px;
+  height: 64px;
+}
+.player .info {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  width: 85%;
+  max-width: 250x;
+  padding: 0 16px;
+}
+.player .info .name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.player .info .singer {
+  font-size: 12px;
+}
+.player .btns {
+  width: 50%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+}
+.player .btns div:nth-child(1) {
+  font-size: 30px;
+}
+.player .btns div:nth-child(2), .player .btns div:nth-child(3) {
+  font-size: 18px;
+}
+.player .progress {
+  position: absolute;
+  height: 2px;
+  left: 0;
+  top: 0;
+  background-color: #00a8ff;
+}
 
 
 
+</style>
     <script type="text/javascript" charset="utf-8">
 
-    var audioElement = document.createElement('audio');
-    audioElement.setAttribute('src', '');
-    audioElement.setAttribute('controls', '');
-    audioElement.volume = 0.2
+    // Retrieve AudioContext with all the prefixes of the browsers
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+
+    // Retrieve getUserMedia API with all the prefixes of the browsers
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+
+
+    var fftSize_ = 2048;
+    var bufferSize_ = 2048;
+    var smoothingTimeConstant_ = 0.8;
+
+
+    var output_pids_ = true
+
+    
+    var socket = io();
+    
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+
+       
+    var barHeight;
+    var barWidth;
     var time_tmp = 0
     var clicked_record = false;
     var is_recording = false;
-
-    audioElement.addEventListener("canplay",function(){
-        $("#length").text("Duration:" + audioElement.duration + " seconds");
-        $("#source").text("Source:" + audioElement.src);
-        $("#status").text("Status: Ready to play").css("color","green");
-    });
-
-    audioElement.addEventListener("timeupdate",function(){
-        $("#currentTime").text("Current second:" + audioElement.currentTime);
-        $("#length").text("Duration:" + audioElement.duration + " seconds");
-    });
-
-    $("#volume").on("change", function(ev) {
-        console.log(parseFloat($(this).val()))
-        audioElement.volume = parseFloat($(this).val() / 100);
-    })
-
-    $('#play').click(function() {
-        audioElement.play();
-        $("#status").text("Status: Playing");
-    });
-
-    $('#pause').click(function() {
-        audioElement.pause();
-        $("#status").text("Status: Paused");
-    });
-
-    $('#restart').click(function() {
-        audioElement.currentTime = 0;
-    });
-
-    $("#player_").append(audioElement)
-    $("#player_ > audio").css( {
-
-    "width": "100%",
-    "height": "500px"
-    })
-
-    var audio = audioElement
-    //audio.src = URL.createObjectURL(files[0]);
-    audio.load();
-    audio.volume = 0.2;
-
-    //audio.play();
-    var context = new AudioContext();
-    var src = context.createMediaElementSource(audio);
-    var analyser = context.createAnalyser();
-
-    var canvas = document.getElementById("canvas");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    var ctx = canvas.getContext("2d");
-    $(canvas).css({
-    // "opacity": 0.2,
-    "z-index": "-50"
-    })
-    src.connect(analyser);
-    analyser.connect(context.destination);
-
-    analyser.fftSize = 512;
-
-    var bufferLength = analyser.frequencyBinCount;
-    console.log(bufferLength);
-
-    var dataArray = new Uint8Array(bufferLength);
-
-    var WIDTH = canvas.width;
-    var HEIGHT = canvas.height;
-
-    var barWidth = (WIDTH / bufferLength) * 1.5;
-    var barHeight;
     var x = 0;
+    var new_message_tmp = ""
+    var messages_last_set = "";
+    var messages_last_set_index = false;
+    var sid_ = null;
+    var messages = []
+    var audioContext = null;
+    var analyser = null;
+    var meter = null;
+    var rafID = null;
+    var mediaStreamSource = null;
+    var bufferLength = 0;
+    var dataArray = null;
+    var WIDTH = 0;
+    var HEIGHT = 0;
+    audioContext = new AudioContext();
+    analyser = audioContext.createAnalyser();
+    analyser.smoothingTimeConstant = smoothingTimeConstant_;
+    analyser.fftSize = fftSize_;
 
-    var emnit_voice = false;
-    function emit_voice_() {
+    bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    WIDTH = canvas.width;
+    HEIGHT = canvas.height;
 
-    }
+    barWidth = (WIDTH / bufferLength) * 1.5;
+
 
     function renderFrame() {
       requestAnimationFrame(renderFrame);
@@ -245,19 +286,18 @@
         return typeof(messages[index-1]) !== 'undefined' && messages.length > 0 ? messages[index-1] : false;
    }
 
-   function stopTracks() {
-    localStream.getTracks().forEach( (track) => {
-        track.stop();
-    });
-    if( localStream.getVideoTracks().length > 0 ) {
-        localStream.getVideoTracks().forEach( (track) => {
-            console.log("stop")
-            console.log(track)
+    function stopTracks() {
+        localStream.getTracks().forEach( (track) => {
             track.stop();
-
         });
+        if( localStream.getVideoTracks().length > 0 ) {
+            localStream.getVideoTracks().forEach( (track) => {
+                console.log("stop")
+                console.log(track)
+                track.stop();
+            });
+        }
     }
-}
 
 
 /**
@@ -282,101 +322,69 @@ function colorPids(vol) {
   }
 }
 
+function output_pids(analyser) {
+    var array = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(array);
+    var values = 0;
+    var length = array.length;
+    for (var i = 0; i < length; i++) {
+        values += (array[i]);
+    }
+    colorPids(values / length)
+}
+
+
+    var startRecordingButton = document.getElementById("startRecordingButton");
+    var stopRecordingButton = document.getElementById("stopRecordingButton");
+    var playButton = document.getElementById("playButton");
+    // var downloadButton = document.getElementById("downloadButton");
+
+    
+    var leftchannel = [];
+    var rightchannel = [];
+    var recorder = null;
+    var recordingLength = 0;
+    var volume = null;
+    var mediaStream = null;
+    var sampleRate = 44100;
+    var context = null;
+    var blob = null;
+
+
 /**
  * Callback triggered if the access to the microphone is granted
  */
 function onMicrophoneGranted(stream) {
-    // Create an AudioNode from the stream.
-    mediaStreamSource = audioContext.createMediaStreamSource(stream);
     var options = {
         audioBitsPerSecond: 128000,
-        videoBitsPerSecond: 2500000,
         mimeType: 'audio/webm'
     }
-    var mediaRecorder = new MediaRecorder(stream, options);
-    var meter_up = false;
-    var meter_down_count = 0;
-    mediaRecorder.addEventListener('dataavailable', event => {
-      if (event.data.size > 0 && is_recording) {
-            if(socket.connected) {
-            var arr_ = window.location.toString().split("/")
-            var index_ = false
-            for(var i = 0; i < arr_.length; i++) {
-                if(arr_[i] == "video") {
-                    index_ = i+1
-                    break
-                }
-            }
-            // console.log(meter_down_count)
-            if(meter.volume > 0.001) {
-                meter_up = true
-                if(meter_down_count > 0) {
-                    meter_down_count = 0
-                }
-            } else {
+    context = new AudioContext();
+    mediaStream = context.createMediaStreamSource(stream)
+    meter = createAudioMeter(context);
+    analyser = context.createAnalyser();
+    javascriptNode = context.createScriptProcessor(bufferSize_, 1, 1);
+    mediaStream.connect(analyser);
+    mediaStream.connect(meter);
+    analyser.connect(javascriptNode);
+    javascriptNode.connect(context.destination);
 
-                if(meter_down_count >= 5) {
-                    meter_up = false
-                    meter_down_count = 0
-                } else {
-                    meter_down_count++
-                }
+    javascriptNode.onaudioprocess = function() {
+        if(output_pids_) {
+            output_pids(analyser)
+            
+        }
+    }
 
-            }
-            // console.log(meter_up)
-
-            if(index_ != false && meter_up) {
-                socket.emit("my_voice", {"data": event.data, "sid": $("#canvas").attr('data-sid'), "room_uuid": arr_[index_]})
-            }
-
-
-            }
-      }
-    });
-    console.log(mediaRecorder)
-    mediaRecorder.addEventListener('dataavailable', null)
-    console.log(mediaRecorder)
-    mediaRecorder.start(1000);
-
-
-    // Create a new volume meter and connect it.
-    meter = createAudioMeter(audioContext);
-    mediaStreamSource.connect(meter);
-
-    audioContext = new AudioContext();
-      analyser = audioContext.createAnalyser();
-      microphone = audioContext.createMediaStreamSource(stream);
-      javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-
-      analyser.smoothingTimeConstant = 0.8;
-      analyser.fftSize = 1024;
-
-      microphone.connect(analyser);
-      analyser.connect(javascriptNode);
-      javascriptNode.connect(audioContext.destination);
-      javascriptNode.onaudioprocess = function() {
-          var array = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteFrequencyData(array);
-          var values = 0;
-
-          var length = array.length;
-          for (var i = 0; i < length; i++) {
-            values += (array[i]);
-          }
-
-          var average = values / length;
-
-        //console.log(Math.round(average));
-       colorPids(average);
-      }
-
-
-
-    // Trigger callback that shows the level of the "Volume Meter"
     onLevelChange();
 }
 
-
+var ID = function () {
+  // Math.random should be unique because of its seeding algorithm.
+  // Convert it to base 36 (numbers + letters), and grab the first 9 characters
+  // after the decimal.
+  return Math.random().toString(36).substr(2, 9);
+};
 
 
 function onLevelChange(time) {
@@ -404,50 +412,329 @@ function onLevelChange(time) {
 
         }
     }
-
-    // set up the next callback
     rafID = window.requestAnimationFrame(onLevelChange);
 }
 
+var ids_ = []
+
+        var last_id = false
+         var id_ = null
+        var last_false = true
+        var startRecordingButton = document.getElementById("startRecordingButton");
+        startRecordingButton.addEventListener("click", function () {
+            $(this).prop("disabled", true)
+            $(stopRecordingButton).prop("disabled", false)
+            if(last_id != false) {
+                console.log("last: "+last_id)
+                if(ids_.length >= 5) {
+                    $("#audioContainer").find($("div[id^='audio_']"))[0].remove()
+                    ids_.pop(0)
+                }
+            }
 
 
+        
+        
+                    // Initialize recorder
+            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+            navigator.getUserMedia(
+            {
+                audio: true
+            },
+            function (e) {
+                // creates the audio context
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                context = new AudioContext();
+
+                // creates an audio node from the microphone incoming stream
+                mediaStream = context.createMediaStreamSource(e);
+
+                // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createScriptProcessor
+                // bufferSize: the onaudioprocess event is called when the buffer is full
+                var bufferSize = 2048;
+                var numberOfInputChannels = 2;
+                var numberOfOutputChannels = 2;
+                if (context.createScriptProcessor) {
+                    recorder = context.createScriptProcessor(bufferSize, numberOfInputChannels, numberOfOutputChannels);
+                } else {
+                    recorder = context.createJavaScriptNode(bufferSize, numberOfInputChannels, numberOfOutputChannels);
+                }
+
+                recorder.onaudioprocess = function (e) {
+                    leftchannel.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+                    rightchannel.push(new Float32Array(e.inputBuffer.getChannelData(1)));
+                    recordingLength += bufferSize;
+                  //   console.log(recordingLength)
+                }
+
+                // we connect the recorder
+                mediaStream.connect(recorder);
+                recorder.connect(context.destination);
+            },
+            function (e) {
+                console.error(e);
+            });
+                
+        })
+        
+        var audios_ = {}
+        
+        
+        
+        stopRecordingButton.addEventListener("click", function () {
+            $(this).prop("disabled", true)
+            $(startRecordingButton).prop("disabled", false)
+            if(last_id != false) {
+                console.log(last_id)
+                console.log($("#audioContainer").find($("audio")).length)
+            }
+            // stop recording
+            recorder.disconnect(context.destination);
+            mediaStream.disconnect(recorder);
+
+            // we flat the left and right channels down
+            // Float32Array[] => Float32Array
+            var leftBuffer = flattenArray(leftchannel, recordingLength);
+            var rightBuffer = flattenArray(rightchannel, recordingLength);
+            // we interleave both channels together
+            // [left[0],right[0],left[1],right[1],...]
+            var interleaved = interleave(leftBuffer, rightBuffer);
+
+            // we create our wav file
+            var buffer = new ArrayBuffer(44 + interleaved.length * 2);
+            var view = new DataView(buffer);
+
+            // RIFF chunk descriptor
+            writeUTFBytes(view, 0, 'RIFF');
+            view.setUint32(4, 44 + interleaved.length * 2, true);
+            writeUTFBytes(view, 8, 'WAVE');
+            // FMT sub-chunk
+            writeUTFBytes(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // chunkSize
+            view.setUint16(20, 1, true); // wFormatTag
+            view.setUint16(22, 2, true); // wChannels: stereo (2 channels)
+            view.setUint32(24, sampleRate, true); // dwSamplesPerSec
+            view.setUint32(28, sampleRate * 4, true); // dwAvgBytesPerSec
+            view.setUint16(32, 4, true); // wBlockAlign
+            view.setUint16(34, 16, true); // wBitsPerSample
+            // data sub-chunk
+            writeUTFBytes(view, 36, 'data');
+            view.setUint32(40, interleaved.length * 2, true);
+
+            // write the PCM samples
+            var index = 44;
+            var volume = 1;
+            for (var i = 0; i < interleaved.length; i++) {
+                view.setInt16(index, interleaved[i] * (0x7FFF * volume), true);
+                index += 2;
+            }
+
+            // our final blob
+            blob = new Blob([view], { type: 'audio/wav' });
+            
+            
+            var audio = document.createElement("audio")
+            audio.src = window.URL.createObjectURL(blob);
+            
+            audio.addEventListener('loadedmetadata', function(){
+                var duration = audio.duration;
+                $(audio).attr("data-duration", duration)
+            },false);
+                    
+            id_ = ID()
+            if($.inArray(id_, ids_) == -1) {
+                ids_.push(id_)
+            }
+            if(id_ != last_id) {
+                last_id = id_
+            }
+            console.log("new: "+id_)
+            $(audio).attr('data-id', id_)
+            // $(audio).attr("controls", "controls")
+            var div_ = document.createElement("div")
+            div_.id = "audio"+id_
+            // $(div_).html("<h2>"+id_+" - "+new Date()+"</h2>")
+            $(div_).append(audio)
+            $.ajax({
+                    url: "/static/assets/player.template.html",
+                    success: function(data) {
+                        var html_ = $.parseHTML(data)
+                        
+                        $(html_[0]).attr("data-id", id_)
+                        var blobURL = window.URL.createObjectURL(blob);
+                        var new_html = $(html_).prop("outerHTML")
+                        
+                        
+                        new_html = new_html.replace(/%DOWNLOAD_ID%/gi, blobURL)
+                        new_html = new_html.replace(/%ARTIST%/gi, new Date())
+                        new_html = new_html.replace(/%TITLE%/gi, id_)
+                        $(div_).append(new_html)
+                        
+                    }
+            })
+            
+            
+            $("#audioContainer").append(div_)
+            window.setTimeout(function() {
+                var blobURL = window.URL.createObjectURL(blob);
+                        
+                $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns button.downloadButton").on('click', function() {
+                    var a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.id = "tmp_"+id_
+                    a.href = blobURL;
+                    a.download = "sample-"+id_+".wav";
+                    a.click();
+                    $(document.body).remove(a)
+                })
+                $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-play").on('click', function() {
+                    console.log("playing")
+                    console.log(paused_)
+                    var audio = $(this).parent().parent().prev()[0]
+                    if(paused_) {
+                        if($(this).hasClass("fa-play")) {
+                            $(this).removeClass("fa-play").addClass("fa-pause")
+                            var url = $(this).parent().find($(".downloadButton")).attr('data-id')
+                            audio.src = url
+                            audio.addEventListener('loadedmetadata', function(){
+                                // Obtain the duration in seconds of the audio file (with milliseconds as well, a float value)
+                                var duration = audio.duration;
+                            
+                                // example 12.3234 seconds
+                                console.log("The duration of the song is of: " + duration + " seconds");
+                                // Alternatively, just display the integer value with
+                                // parseInt(duration)
+                                // 12 seconds
+                            },false);
+                            
+                            
+                            audio.addEventListener("ended", function() {
+                                console.log("audio fin")
+                               var el = $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-pause")
+                               if($(el).attr("class").search("fa-pause") != "-1") {
+                                $(el).removeClass("fa-pause").addClass("fa-play")
+                                paused_ = true
+                                }
+                            })
+                            audio.play();
+                            paused_ = false
+                        }
+                    } else {
+                        if($(this).hasClass("fa-pause")) {
+                            $(this).removeClass("fa-pause").addClass("fa-play")
+                            audio.pause()
+                            paused_ = true
+                        }
+                        
+                    }
+                    
+                    
+                    /*
+                    var url = $(this).parent().find($(".downloadButton")).attr('data-id')
+                    var audio = new Audio(url);
+                    audio.addEventListener('loadedmetadata', function(){
+                        // Obtain the duration in seconds of the audio file (with milliseconds as well, a float value)
+                        var duration = audio.duration;
+                    
+                        // example 12.3234 seconds
+                        console.log("The duration of the song is of: " + duration + " seconds");
+                        // Alternatively, just display the integer value with
+                        // parseInt(duration)
+                        // 12 seconds
+                    },false);
+                    // audio.play();
+                    if(paused_) {
+                        $(this).attr("class", $(this).attr("class").replace("fa-play","fa-pause"))
+                        paused_ = false
+                        audio.play();
+                    } else {
+                        $(this).attr("class", $(this).attr("class").replace("fa-play","fa-play"))
+                        paused_ = true
+                        audio.stop();
+                        currentTime = audio.currentTime
+                        console.log(currentTime)
+                    }
+                    */
+                })
+            },500)
+            
+            // html body div#audioContainer div#audio7v85rn802 div.player div.btns button.downloadButton
+            
+            
+        });
+        var paused_ = true;
+        playButton.addEventListener("click", function () {
+            if (blob == null) {
+                return;
+            }
+
+            var url = window.URL.createObjectURL(blob);
+            
+            var audio = new Audio(url);
+            audio.addEventListener('loadedmetadata', function(){
+                // Obtain the duration in seconds of the audio file (with milliseconds as well, a float value)
+                var duration = audio.duration;
+            
+                // example 12.3234 seconds
+                console.log("The duration of the song is of: " + duration + " seconds");
+                // Alternatively, just display the integer value with
+                // parseInt(duration)
+                // 12 seconds
+            },false);
+            audio.play();
+        });
 
 
-    var new_message_tmp = ""
-    var messages_last_set = "";
-    var messages_last_set_index = false;
+        /*
+        downloadButton.addEventListener("click", function () {
+            if (blob == null) {
+                return;
+            }
 
+            var url = URL.createObjectURL(blob);
 
-    var socket = io();
-    var sid_ = null;
-    socket.on("open", function() {
-    console.log("opened")
-    })
-    var messages = []
+            var a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style = "display: none";
+            a.href = url;
+            a.download = "sample.wav";
+            a.click();
+            window.URL.revokeObjectURL(url);
+        });
+        */
 
+        function flattenArray(channelBuffer, recordingLength) {
+            var result = new Float32Array(recordingLength);
+            var offset = 0;
+            for (var i = 0; i < channelBuffer.length; i++) {
+                var buffer = channelBuffer[i];
+                result.set(buffer, offset);
+                offset += buffer.length;
+            }
+            return result;
+        }
 
+        function interleave(leftChannel, rightChannel) {
+            var length = leftChannel.length + rightChannel.length;
+            var result = new Float32Array(length);
 
+            var inputIndex = 0;
 
-/**
- * Create global accessible variables that will be modified later
- */
-var audioContext = null;
-var meter = null;
-var rafID = null;
-var mediaStreamSource = null;
+            for (var index = 0; index < length;) {
+                result[index++] = leftChannel[inputIndex];
+                result[index++] = rightChannel[inputIndex];
+                inputIndex++;
+            }
+            return result;
+        }
 
-// Retrieve AudioContext with all the prefixes of the browsers
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        function writeUTFBytes(view, offset, string) {
+            for (var i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
 
-// Get an audio context
-audioContext = new AudioContext();
-
-
-
-
-
-    // Retrieve getUserMedia API with all the prefixes of the browsers
-    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
     // Ask for an audio input
     navigator.getUserMedia(
@@ -589,32 +876,16 @@ audioContext = new AudioContext();
                                 messages_last_set_index++;
                                 if(new_message_tmp.length == 0) {
                                     new_message_tmp = get_last_message_by(messages_last_set_index)
-                                } else {
-                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
-                                        console.log(messages)
-                                        console.log(messages.length)
-
-                                    }
                                 }
                                 if(get_last_message_by(messages_last_set_index) == false) {
                                     messages_last_set_index = 0
                                 }
                                 var new_message = get_last_message_by(messages_last_set_index) != false ? get_last_message_by(messages_last_set_index) : "abc"
-
-                                // console.log(messages_last_set_index)
-                                // console.log("len : "+messages.length)
-                                // console.log(messages)
                             } else {
                                 messages_last_set_index = messages.length
 
                                 if(new_message_tmp.length == 0) {
                                     new_message_tmp = get_last_message_by(messages_last_set_index)
-                                } else {
-                                    if(get_last_message_by(messages_last_set_index) == new_message_tmp) {
-                                        console.log(messages)
-                                        console.log(messages.length)
-
-                                    }
                                 }
                                 if(get_last_message_by(messages_last_set_index) == false) {
                                     messages_last_set_index = 0
@@ -643,72 +914,8 @@ audioContext = new AudioContext();
     })
 
 
-    $(document).ready(function() {
-        // Connect to the Socket.IO server.
-        // The connection URL has the following format, relative to the current page:
-        //     http[s]://<domain>:<port>[/<namespace>]
 
-        // Event handler for new connections.
-        // The callback function is invoked when a connection with the
-        // server is established.
-        socket.on('connect', function(data_) {
-            socket.emit('my_event', {data: 'I\'m connected!'});
-            // console.log(data_)
-
-            socket.emit("get_my_sid");
-
-        });
-        socket.on('my_sid', function(msg, cb) {
-        var sid = msg
-            $("#canvas").attr("data-sid", sid)
-        })
-        socket.on('last_vosk_lines', function(msg, cb) {
-            $('#vosk_log').html("")
-            $.each(msg.data, function(index, line) {
-                $('#vosk_log').append('<br>' + $('<div/>').text(line).html());
-            })
-            if (cb)
-                cb();
-        });
-
-        socket.on('my_vosk_log', function(msg, cb) {
-
-            $('#vosk_log').append('<br>' + $('<div/>').text(msg.data).html());
-            if (cb)
-                cb();
-        });
-
-        socket.on('my_response', function(msg, cb) {
-            if(msg.data == "Connected") {
-                sid_ = msg.sid
-                socket.emit("init_ctrl", {"data": "get_last_vosk_logs"})
-            }
-            $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
-                if($("#form_sid").length > 0) {
-                    $("#form_sid").val(btoa(msg["sid"]))
-                    console.log($("#form_sid"))
-                }
-            if (cb)
-                cb();
-        });
-
-        $('#message').keypress(function (e) {
-          if (e.which == 13) {
-
-          if($("#message").val().length > 0) {
-                console.log("emitto")
-                socket.emit("my_broadcast_event", {data: $("#message").val()})
-            } else {
-                console.error("no message")
-            }
-
-            messages.push($('#message').val())
-            messages_last_set_index = messages.length
-            $('#message').val('')
-
-          }
-        });
-    });
     </script>
+    <script src="/static/socket.functions.js"></script>
 </body>
 </html>

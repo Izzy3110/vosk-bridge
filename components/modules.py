@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -42,9 +43,10 @@ class mqtt_client(threading.Thread):
     class MQTTEvents:
         def on_message(client, userdata, message):
             msg = str(message.payload.decode("utf-8"))
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            asyncio.get_event_loop().run_until_complete(run_test('ws://localhost:2700', msg))
+            print(len(msg))
+            #loop = asyncio.new_event_loop()
+            #asyncio.set_event_loop(loop)
+            #asyncio.get_event_loop().run_until_complete(run_test('ws://localhost:2700', msg))
 
             #print("message received: ", msg)
             #print("message topic: ", message.topic)
@@ -64,7 +66,13 @@ class mqtt_client(threading.Thread):
         self.client_.username_pw_set("Izzy3110", "qwert")
         self.client_.on_connect = self.MQTTEvents.on_connect
         self.client_.on_message = self.MQTTEvents.on_message
-        self.client_.connect(BROKER_ADDRESS, PORT)
+        try:
+            self.client_.connect(BROKER_ADDRESS, PORT)
+        except socket.timeout:
+
+            print("error with mqtt")
+            pass
+
         self.client_.loop_forever()
 
 

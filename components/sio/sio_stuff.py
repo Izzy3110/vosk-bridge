@@ -22,12 +22,15 @@ mqtt_client_.start()
 
 @sio.event
 async def my_voice(sid, message):
-    global mqtt_client_
-    print(message.keys())
-    TOPIC = message["room_uuid"]
-    mqtt_client_.client_.subscribe(TOPIC)
-    mqtt_client_.client_.publish(TOPIC, base64.b64encode(message["data"]).decode(), qos=QOS)
-    await sio.emit('my_response_voice', {'data': base64.b64encode(message["data"]).decode(), "sid": message["sid"], "room_uuid": TOPIC},broadcast=True)
+
+    tmp_ = b''
+    from datetime import  datetime
+    with open("../tmp_wav-" + datetime.now().strftime("%d.%m.%Y_%H_%M_%S") + ".wav", "wb") as wav_file:
+        for item in message["data"]:
+            tmp_ = tmp_ + item
+            wav_file.write(item)
+        wav_file.close()
+    await sio.emit('my_response_voice', {'data': tmp_, "sid": message["sid"], "room_uuid": message["room_uuid"]},broadcast=True)
 
 
 @sio.event

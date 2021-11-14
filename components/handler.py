@@ -5,6 +5,14 @@ import uuid
 
 
 class VideoHandler(tornado.web.RequestHandler, ABC):
+
+    def set_default_headers(self):
+        print
+        ("setting headers!!!")
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Headers", "origin, x-requested-with, content-type")
+        self.set_header('Access-Control-Allow-Methods', 'PUT, GET, POST, DELETE, OPTIONS-')
+
     def get(self, room_uuid=None):
         room_id_set = False
         if room_uuid is not None:
