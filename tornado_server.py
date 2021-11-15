@@ -1,22 +1,24 @@
 import asyncio
 import os
 import sys
+import base64
 import tornado.ioloop
 import tornado.web
 from tornado.options import define, options, parse_command_line
-from components.handler import VideoHandler, MainHandler
-from components.sio.sio_stuff import *
+from components.handler.video import VideoHandler
+from components.handler.main import MainHandler
+from components.sio.main import *
 
 define("port", default=5000, help="run on the given port", type=int)
 define("debug", default=False, help="run in debug mode")
 
-#if sys.platform == "win32":
-#    # https://github.com/tornadoweb/tornado/issues/2608
-#    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-#else:
-#    asyncio.set_event_loop_policy(
-#        tornado.platform.asyncio.AnyThreadEventLoopPolicy()
-#    )
+if sys.platform == "win32":
+    # https://github.com/tornadoweb/tornado/issues/2608
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+else:
+    asyncio.set_event_loop_policy(
+        tornado.platform.asyncio.AnyThreadEventLoopPolicy()
+    )
 
 
 def make_app():

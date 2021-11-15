@@ -1,8 +1,16 @@
 import socketio
 from threading import Lock
-from components.mytasks import background_task
+from components.tasks.mytasks import background_task
 from components.modules.thread_vosk import VoskServer
-from components.modules.thread_mqttClient import MQTTClient
+
+
+# from components.modules.thread_mqttClient import MQTTClient
+# mqtt_client_ = None
+# # -------------- in def connect(): ---------------- #
+# mqtt_client_ = MQTTClient()
+# mqtt_client_.start()
+# # ------------------------------------------------- #
+
 
 thread = None
 thread_lock = Lock()
@@ -10,7 +18,7 @@ thread_lock = Lock()
 sio = socketio.AsyncServer(async_mode='tornado')
 
 vs_ = None
-mqtt_client_ = None
+
 clients_recording_status = {}
 
 
@@ -20,7 +28,7 @@ async def get_my_sid(sid):
 
 
 @sio.event
-async def my_voice(sid, message):
+async def my_voice(message):
     tmp_ = b''
     from datetime import datetime
     with open("../tmp_wav-" + datetime.now().strftime("%d.%m.%Y_%H_%M_%S") + ".wav", "wb") as wav_file:
@@ -38,7 +46,7 @@ async def my_event(sid, message):
 
 
 @sio.event
-async def my_broadcast_event(sid, message):
+async def my_broadcast_event(message):
     await sio.emit('my_response', {'data': message['data']}, broadcast=True)
 
 
@@ -57,7 +65,7 @@ async def leave(sid, message):
 
 
 @sio.event
-async def close_room(sid, message):
+async def close_room(message):
     await sio.emit('my_response',
                    {'data': 'Room ' + message['room'] + ' is closing.'},
                    room=message['room'])
@@ -65,15 +73,20 @@ async def close_room(sid, message):
 
 
 @sio.event
-async def my_room_event(sid, message):
+async def my_room_event(message):
     await sio.emit('my_response', {'data': message['data']},
                    room=message['room'])
 
 
+# noinspection PyUnresolvedReferences
 @sio.event
 async def init_ctrl(sid, message):
-    if message["data"] == "get_last_vosk_logs":
-        await sio.emit("last_vosk_lines", {"data": vs_.vosk_lines}, to=sid)
+    global vs_
+    if vs_ is not None:
+        if message["data"] == "get_last_vosk_logs":
+            vosk_lines = vs_.get_lines()
+            if vosk_lines is not None:
+                await sio.emit("last_vosk_lines", {"data": vosk_lines}, to=sid)
 
 
 @sio.event
@@ -83,11 +96,9 @@ async def disconnect_request(sid):
 
 @sio.event
 async def connect(sid, _):
-    global vs_, mqtt_client_
-    # mqtt_client_ = MQTTClient()
-    # mqtt_client_.start()
+    global vs_
     if vs_ is None:
-        print("starting vosk")
+
         vs_ = VoskServer(sio)
         vs_.start()
     global thread
@@ -99,4 +110,4 @@ async def connect(sid, _):
 
 @sio.event
 def disconnect(sid):
-    print('Client disconnected')
+    print('Client disconnected: ' + str(sid))
