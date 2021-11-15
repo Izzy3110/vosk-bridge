@@ -17,8 +17,8 @@ sio = socketio.AsyncServer(async_mode='tornado')
 async def get_my_sid(sid):
     await sio.emit('my_sid', sid, to=sid)
 
-mqtt_client_ = mqtt_client()
-mqtt_client_.start()
+#mqtt_client_ = mqtt_client()
+#mqtt_client_.start()
 
 @sio.event
 async def my_voice(sid, message):
