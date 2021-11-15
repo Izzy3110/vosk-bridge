@@ -118,14 +118,9 @@
   <div class="pid"></div>
 </div>
 <div id="testDiv"></div>
-<!-- <button class="btn btn-default" id="recordBtn">Record Voice</button> -->
-    <button id="startRecordingButton">Start recording</button>
-    <button id="stopRecordingButton">Stop recording</button>
-    <!-- <button id="playButton">Play</button> -->
-    <div id="audioContainer">
-    </div>
-    
-
+<button id="startRecordingButton">Start recording</button>
+<button id="stopRecordingButton">Stop recording</button>
+<div id="audioContainer"></div>
 <div id="vosk_log" style="overflow: hidden; min-height: 250px;"></div>
 <div id="log" style="overflow: hidden; min-height: 250px;"></div>
 <style>
@@ -209,19 +204,14 @@
     var fftSize_ = 2048;
     var bufferSize_ = 2048;
     var smoothingTimeConstant_ = 0.8;
-
-
     var output_pids_ = true
 
-    
     var socket = io();
     
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext("2d");
-    
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
     var barHeight;
     var barWidth;
     var time_tmp = 0
@@ -240,8 +230,6 @@
     var mediaStreamSource = null;
     var bufferLength = 0;
     var paused_ = true;
-    
-    
     var dataArray = null;
     var WIDTH = 0;
     var HEIGHT = 0;
@@ -249,14 +237,11 @@
     analyser = audioContext.createAnalyser();
     analyser.smoothingTimeConstant = smoothingTimeConstant_;
     analyser.fftSize = fftSize_;
-
     bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
     WIDTH = canvas.width;
     HEIGHT = canvas.height;
-
     barWidth = (WIDTH / bufferLength) * 1.5;
-
 
     function renderFrame() {
       requestAnimationFrame(renderFrame);
@@ -294,9 +279,9 @@
 
    }
 
-   function get_last_message_by(index) {
+    function get_last_message_by(index) {
         return typeof(messages[index-1]) !== 'undefined' && messages.length > 0 ? messages[index-1] : false;
-   }
+    }
 
     function stopTracks() {
         localStream.getTracks().forEach( (track) => {
@@ -604,7 +589,6 @@
                                 // 12 seconds
                             },false);
                             
-                            
                             audio.addEventListener("ended", function() {
                                 var el = $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-pause")
                                 if(el.length > 0) {
@@ -617,10 +601,6 @@
                             paused_ = false
                         }
                     } else {
-                    
-                    
-                    
-                    
                         if($(this).hasClass("fa-pause")) {
                             $(this).removeClass("fa-pause").addClass("fa-play")
                             audio.pause()
@@ -628,84 +608,10 @@
                         }
                         
                     }
-                    
-                    
-                    /*
-                    var url = $(this).parent().find($(".downloadButton")).attr('data-id')
-                    var audio = new Audio(url);
-                    audio.addEventListener('loadedmetadata', function(){
-                        // Obtain the duration in seconds of the audio file (with milliseconds as well, a float value)
-                        var duration = audio.duration;
-                    
-                        // example 12.3234 seconds
-                        console.log("The duration of the song is of: " + duration + " seconds");
-                        // Alternatively, just display the integer value with
-                        // parseInt(duration)
-                        // 12 seconds
-                    },false);
-                    // audio.play();
-                    if(paused_) {
-                        $(this).attr("class", $(this).attr("class").replace("fa-play","fa-pause"))
-                        paused_ = false
-                        audio.play();
-                    } else {
-                        $(this).attr("class", $(this).attr("class").replace("fa-play","fa-play"))
-                        paused_ = true
-                        audio.stop();
-                        currentTime = audio.currentTime
-                        console.log(currentTime)
-                    }
-                    */
                 })
             },500)
-            
-            // html body div#audioContainer div#audio7v85rn802 div.player div.btns button.downloadButton
-            
-            
         });
         
-        /*
-        
-        playButton.addEventListener("click", function () {
-            if (blob == null) {
-                return;
-            }
-
-            var url = window.URL.createObjectURL(blob);
-            
-            var audio = new Audio(url);
-            audio.addEventListener('loadedmetadata', function(){
-                // Obtain the duration in seconds of the audio file (with milliseconds as well, a float value)
-                var duration = audio.duration;
-            
-                // example 12.3234 seconds
-                console.log("The duration of the song is of: " + duration + " seconds");
-                // Alternatively, just display the integer value with
-                // parseInt(duration)
-                // 12 seconds
-            },false);
-            audio.play();
-        });
-        */
-
-        /*
-        downloadButton.addEventListener("click", function () {
-            if (blob == null) {
-                return;
-            }
-
-            var url = URL.createObjectURL(blob);
-
-            var a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style = "display: none";
-            a.href = url;
-            a.download = "sample.wav";
-            a.click();
-            window.URL.revokeObjectURL(url);
-        });
-        */
-
         function flattenArray(channelBuffer, recordingLength) {
             var result = new Float32Array(recordingLength);
             var offset = 0;
@@ -756,7 +662,6 @@
     )
 
     $(document).on('mousedown', function(ev) {
-
         if(ev.target.id == "recordBtn") {
             clicked_record = !clicked_record
 
@@ -794,9 +699,9 @@
                 }
 
 
-            break;
+                break;
             case 37: // left
-            break;
+                break;
 
             case 38: // up
                 if(e.target.id == "message") {
