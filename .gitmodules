@@ -1,6 +1,0 @@
-[submodule "examples_and_3rdparty/vosk-server"]
-	path = examples_and_3rdparty/vosk-server
-	url = https://github.com/alphacep/vosk-server
-[submodule "examples_and_3rdparty/examples_and_3rdparty/vosk-server"]
-	path = examples_and_3rdparty/examples_and_3rdparty/vosk-server
-	url = https://github.com/alphacep/vosk-server.git
