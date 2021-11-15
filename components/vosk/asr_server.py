@@ -87,12 +87,8 @@ def start():
 
     args.interface = os.environ.get('VOSK_SERVER_INTERFACE', '0.0.0.0')
     args.port = int(os.environ.get('VOSK_SERVER_PORT', 2700))
-    args.model_path = os.environ.get('VOSK_MODEL_PATH', 'model')
-    print(args.model_path)
-    print(__file__)
-    print(os.path.abspath(__file__))
-    print(os.path.dirname(os.path.abspath(__file__)))
-    sys.exit(1)
+    model_path_ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
+    args.model_path = os.environ.get('VOSK_MODEL_PATH', model_path_ if os.path.isdir(model_path_) else 'model')
     args.spk_model_path = os.environ.get('VOSK_SPK_MODEL_PATH')
     args.sample_rate = float(os.environ.get('VOSK_SAMPLE_RATE', 8000))
     args.max_alternatives = int(os.environ.get('VOSK_ALTERNATIVES', 0))
@@ -108,7 +104,8 @@ def start():
     # def thread_init():
     #     GpuInstantiate()
     # pool = concurrent.futures.ThreadPoolExecutor(initializer=thread_init)
-    abs_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"model") if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),"model")) else args.model_path
+    abs_model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model") if os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                                                                     "model")) else args.model_path
     model = Model(abs_model_path)
     spk_model = SpkModel(args.spk_model_path) if args.spk_model_path else None
 
