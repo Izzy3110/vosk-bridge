@@ -1,10 +1,6 @@
-
 bidict==0.21.4
-netifaces==0.10.6
 paho-mqtt==1.6.1
-pkg-resources==0.0.0
 python-engineio==4.3.0
 python-socketio==5.5.0
-socketio==0.2.1
-tornado==5.1
+tornado==6.1
 websockets==10.1
