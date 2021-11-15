@@ -142,18 +142,5 @@ if __name__ == '__main__':
                 tmp_chunks.append(chunk)
                 chunks_ += chunk_size
             f.close()
-
-
-        '''
-        f = None
-        with open('cached/stream.mp3', 'wb') as f:
-            print("open")
-            try:
-                for block in resp.iter_content(1024):
-                    print(1024)
-            except KeyboardInterrupt:
-                pass
-        '''
-
     else:
         print(" iss none")
