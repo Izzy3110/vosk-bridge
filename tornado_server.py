@@ -10,13 +10,13 @@ from components.sio.sio_stuff import *
 define("port", default=5000, help="run on the given port", type=int)
 define("debug", default=False, help="run in debug mode")
 
-if sys.platform == "win32":
-    # https://github.com/tornadoweb/tornado/issues/2608
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-else:
-    asyncio.set_event_loop_policy(
-        tornado.platform.asyncio.AnyThreadEventLoopPolicy()
-    )
+#if sys.platform == "win32":
+#    # https://github.com/tornadoweb/tornado/issues/2608
+#    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+#else:
+#    asyncio.set_event_loop_policy(
+#        tornado.platform.asyncio.AnyThreadEventLoopPolicy()
+#    )
 
 
 def make_app():

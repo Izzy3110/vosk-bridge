@@ -19,7 +19,8 @@
       width: 100%;
       height: 100%;
     }
-/*
+    
+    /*
     audio {
       position: fixed;
       left: 10px;
@@ -96,7 +97,6 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="/static/volume-meter.js"></script>
     <script type="text/javascript" src="/static/jquery.easing.min.js"></script>
-    
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
 
 
@@ -185,15 +185,26 @@
 
 
 </style>
-    <script type="text/javascript" charset="utf-8">
+<script type="text/javascript" charset="utf-8">
+
+    var startRecordingButton = document.getElementById("startRecordingButton");
+    var stopRecordingButton = document.getElementById("stopRecordingButton");
+  
+    var leftchannel = [];
+    var rightchannel = [];
+    var recorder = null;
+    var recordingLength = 0;
+    var volume = null;
+    var mediaStream = null;
+    var sampleRate = 44100;
+    var context = null;
+    var blob = null;
 
     // Retrieve AudioContext with all the prefixes of the browsers
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
     // Retrieve getUserMedia API with all the prefixes of the browsers
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-
-
 
     var fftSize_ = 2048;
     var bufferSize_ = 2048;
@@ -210,9 +221,7 @@
     
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    
 
-       
     var barHeight;
     var barWidth;
     var time_tmp = 0
@@ -230,6 +239,9 @@
     var rafID = null;
     var mediaStreamSource = null;
     var bufferLength = 0;
+    var paused_ = true;
+    
+    
     var dataArray = null;
     var WIDTH = 0;
     var HEIGHT = 0;
@@ -299,129 +311,104 @@
         }
     }
 
-
-/**
- * Callback triggered if the microphone permission is denied
- */
-function onMicrophoneDenied() {
-    alert('Stream generation failed.');
-}
-
-function colorPids(vol) {
-  let all_pids = $('.pid');
-  let amout_of_pids = Math.round(vol/10);
-  let elem_range = all_pids.slice(0, amout_of_pids)
-
-  for (var i = 0; i < all_pids.length; i++) {
-    all_pids[i].style.backgroundColor="#e6e7e8";
-  }
-  for (var i = 0; i < elem_range.length; i++) {
-
-    // console.log(elem_range[i]);
-    elem_range[i].style.backgroundColor="#69ce2b";
-  }
-}
-
-function output_pids(analyser) {
-    var array = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(array);
-    var values = 0;
-    var length = array.length;
-    for (var i = 0; i < length; i++) {
-        values += (array[i]);
+    function onMicrophoneDenied() {
+        alert('Stream generation failed.');
     }
-    colorPids(values / length)
-}
 
+    function colorPids(vol) {
+      let all_pids = $('.pid');
+      let amout_of_pids = Math.round(vol/10);
+      let elem_range = all_pids.slice(0, amout_of_pids)
 
-    var startRecordingButton = document.getElementById("startRecordingButton");
-    var stopRecordingButton = document.getElementById("stopRecordingButton");
-    var playButton = document.getElementById("playButton");
-    // var downloadButton = document.getElementById("downloadButton");
-
-    
-    var leftchannel = [];
-    var rightchannel = [];
-    var recorder = null;
-    var recordingLength = 0;
-    var volume = null;
-    var mediaStream = null;
-    var sampleRate = 44100;
-    var context = null;
-    var blob = null;
-
-
-/**
- * Callback triggered if the access to the microphone is granted
- */
-function onMicrophoneGranted(stream) {
-    var options = {
-        audioBitsPerSecond: 128000,
-        mimeType: 'audio/webm'
+      for (var i = 0; i < all_pids.length; i++) {
+        all_pids[i].style.backgroundColor="#e6e7e8";
+      }
+      for (var i = 0; i < elem_range.length; i++) {
+        elem_range[i].style.backgroundColor="#69ce2b";
+      }
     }
-    context = new AudioContext();
-    mediaStream = context.createMediaStreamSource(stream)
-    meter = createAudioMeter(context);
-    analyser = context.createAnalyser();
-    javascriptNode = context.createScriptProcessor(bufferSize_, 1, 1);
-    mediaStream.connect(analyser);
-    mediaStream.connect(meter);
-    analyser.connect(javascriptNode);
-    javascriptNode.connect(context.destination);
 
-    javascriptNode.onaudioprocess = function() {
-        if(output_pids_) {
-            output_pids(analyser)
-            
+    function output_pids(analyser) {
+        var array = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(array);
+        var values = 0;
+        var length = array.length;
+        for (var i = 0; i < length; i++) {
+            values += (array[i]);
         }
+        colorPids(values / length)
     }
 
-    onLevelChange();
-}
-
-var ID = function () {
-  // Math.random should be unique because of its seeding algorithm.
-  // Convert it to base 36 (numbers + letters), and grab the first 9 characters
-  // after the decimal.
-  return Math.random().toString(36).substr(2, 9);
-};
-
-
-function onLevelChange(time) {
-    if(meter.volume <= 0.0001) {
-        if($("#on_offline").hasClass("online")) {
-            $("#on_offline").removeClass("online").addClass("offline");
-            $("#overlay").stop().animate({
-            "opacity": 0
-            }, 150, "", function() {
-
-                status_ = false
-                socket.emit('audio_event', {"mic_status":0});
-            })
+    function onMicrophoneGranted(stream) {
+        var options = {
+            audioBitsPerSecond: 128000,
+            mimeType: 'audio/webm'
         }
-    } else {
-        if($("#on_offline").hasClass("offline")) {
-            $("#on_offline").removeClass("offline").addClass("online")
-            $("#overlay").stop().animate({
-            "opacity": 1
-            }, 750, "", function() {
+        context = new AudioContext();
+        mediaStream = context.createMediaStreamSource(stream)
+        meter = createAudioMeter(context);
+        analyser = context.createAnalyser();
+        javascriptNode = context.createScriptProcessor(bufferSize_, 1, 1);
+        mediaStream.connect(analyser);
+        mediaStream.connect(meter);
+        analyser.connect(javascriptNode);
+        javascriptNode.connect(context.destination);
 
-                status_ = true
-                socket.emit('audio_event', {"mic_status":1});
-            })
-
+        javascriptNode.onaudioprocess = function() {
+            if(output_pids_) {
+                output_pids(analyser)
+                
+            }
         }
+
+        onLevelChange();
     }
-    rafID = window.requestAnimationFrame(onLevelChange);
-}
 
-var ids_ = []
+    var ID = function () {
+      // Math.random should be unique because of its seeding algorithm.
+      // Convert it to base 36 (numbers + letters), and grab the first 9 characters
+      // after the decimal.
+      return Math.random().toString(36).substr(2, 9);
+    };
 
+
+    function onLevelChange(time) {
+        if(meter.volume <= 0.0001) {
+            if($("#on_offline").hasClass("online")) {
+                $("#on_offline").removeClass("online").addClass("offline");
+                $("#overlay").stop().animate({
+                "opacity": 0
+                }, 150, "", function() {
+
+                    status_ = false
+                    socket.emit('audio_event', {"mic_status":0});
+                })
+            }
+        } else {
+            if($("#on_offline").hasClass("offline")) {
+                $("#on_offline").removeClass("offline").addClass("online")
+                $("#overlay").stop().animate({
+                "opacity": 1
+                }, 750, "", function() {
+
+                    status_ = true
+                    socket.emit('audio_event', {"mic_status":1});
+                })
+
+            }
+        }
+        rafID = window.requestAnimationFrame(onLevelChange);
+    }
+
+
+
+        var ids_ = []
         var last_id = false
          var id_ = null
         var last_false = true
         var startRecordingButton = document.getElementById("startRecordingButton");
         startRecordingButton.addEventListener("click", function () {
+        
             $(this).prop("disabled", true)
             $(stopRecordingButton).prop("disabled", false)
             if(last_id != false) {
@@ -431,22 +418,15 @@ var ids_ = []
                     ids_.pop(0)
                 }
             }
-
-
-        
-        
-                    // Initialize recorder
+            
             navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
             navigator.getUserMedia(
             {
                 audio: true
             },
             function (e) {
-                // creates the audio context
                 window.AudioContext = window.AudioContext || window.webkitAudioContext;
                 context = new AudioContext();
-
-                // creates an audio node from the microphone incoming stream
                 mediaStream = context.createMediaStreamSource(e);
 
                 // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createScriptProcessor
@@ -464,10 +444,8 @@ var ids_ = []
                     leftchannel.push(new Float32Array(e.inputBuffer.getChannelData(0)));
                     rightchannel.push(new Float32Array(e.inputBuffer.getChannelData(1)));
                     recordingLength += bufferSize;
-                  //   console.log(recordingLength)
                 }
 
-                // we connect the recorder
                 mediaStream.connect(recorder);
                 recorder.connect(context.destination);
             },
@@ -550,11 +528,10 @@ var ids_ = []
             }
             console.log("new: "+id_)
             $(audio).attr('data-id', id_)
-            // $(audio).attr("controls", "controls")
             var div_ = document.createElement("div")
             div_.id = "audio"+id_
-            // $(div_).html("<h2>"+id_+" - "+new Date()+"</h2>")
             $(div_).append(audio)
+            
             $.ajax({
                     url: "/static/assets/player.template.html",
                     success: function(data) {
@@ -588,12 +565,31 @@ var ids_ = []
                     a.click();
                     $(document.body).remove(a)
                 })
+                
+                $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.stop.icon-stop.fas.fa-stop").on('click', function(ev) {
+                    var audio = $(this).parent().parent().prev()[0]
+                    
+                    if(!audio.paused) {
+                        $(this).prev().removeClass("fa-pause").addClass("fa-play")
+                        audio.pause();
+                        paused_ = true;
+                    } else {
+                        console.log("is paused")
+                    }
+                
+                })
+                
                 $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-play").on('click', function() {
                     console.log("playing")
                     console.log(paused_)
                     var audio = $(this).parent().parent().prev()[0]
+                    if(audio.currentTime == audio.duration) {
+                        paused_ = true
+                    }
                     if(paused_) {
                         if($(this).hasClass("fa-play")) {
+                            console.log($(this).next())
+                            console.log($(this).next().next())
                             $(this).removeClass("fa-play").addClass("fa-pause")
                             var url = $(this).parent().find($(".downloadButton")).attr('data-id')
                             audio.src = url
@@ -610,17 +606,21 @@ var ids_ = []
                             
                             
                             audio.addEventListener("ended", function() {
-                                console.log("audio fin")
-                               var el = $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-pause")
-                               if($(el).attr("class").search("fa-pause") != "-1") {
-                                $(el).removeClass("fa-pause").addClass("fa-play")
-                                paused_ = true
+                                var el = $("html body div#audioContainer div[id='audio"+id_+"'] div.player[data-id='"+id_+"'] div.btns div.play-pause.icon-play.fas.fa-pause")
+                                if(el.length > 0) {
+                                    if($(el[0]).attr('class').search("fa-pause") != "-1") {
+                                        $(el[0]).removeClass("fa-pause").addClass("fa-play")
+                                    }
                                 }
                             })
                             audio.play();
                             paused_ = false
                         }
                     } else {
+                    
+                    
+                    
+                    
                         if($(this).hasClass("fa-pause")) {
                             $(this).removeClass("fa-pause").addClass("fa-play")
                             audio.pause()
@@ -663,7 +663,9 @@ var ids_ = []
             
             
         });
-        var paused_ = true;
+        
+        /*
+        
         playButton.addEventListener("click", function () {
             if (blob == null) {
                 return;
@@ -684,7 +686,7 @@ var ids_ = []
             },false);
             audio.play();
         });
-
+        */
 
         /*
         downloadButton.addEventListener("click", function () {
