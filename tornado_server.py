@@ -15,10 +15,10 @@ define("debug", default=False, help="run in debug mode")
 if sys.platform == "win32":
     # https://github.com/tornadoweb/tornado/issues/2608
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-else:
-    asyncio.set_event_loop_policy(
-        tornado.platform.asyncio.AnyThreadEventLoopPolicy()
-    )
+# else:
+#     asyncio.set_event_loop_policy(
+#         tornado.platform.asyncio.AnyThreadEventLoopPolicy()
+#     )
 
 
 def make_app():

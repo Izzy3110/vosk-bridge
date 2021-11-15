@@ -373,6 +373,62 @@ right: 5px;
       // after the decimal.
       return Math.random().toString(36).substr(2, 9);
     };
+    
+    
+    
+    function sendToVosk(e) {
+        console.log(e)
+        var blob_ = null;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', $(e).attr("data-id"), true);
+        xhr.responseType = 'blob';
+        xhr.onload = function(e) {
+          if (this.status == 200) {
+            blob_ = this.response;
+            console.log(this)
+            // myBlob is now the blob that the object URL pointed to.
+          }
+        };
+        xhr.onloadend = function(e) {
+        
+            console.log("ready")
+            //if(blob_ == null) {
+            
+                window.setTimeout(function() {
+                    if(typeof blob_.size !== 'undefined') {
+                    var buf = new FileReader().readAsArrayBuffer(blob_)
+                    // console.log(buf)
+                    
+                    var buffer_ = new ArrayBuffer()
+                    var reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        var arrayBuffer = reader.result;
+                        if(socket.connected) {
+                            socket.emit("audioData", {"data": arrayBuffer})
+                        }
+                    }
+
+                    reader.readAsArrayBuffer(blob_);
+                    // console.log(buffer_)
+                    
+                    /*console.log(blob_.arrayBuffer())
+                    var interval = window.setInterval(function() {
+                        console.log(blob_.arrayBuffer())
+                    },1000)
+                    */
+                    
+                    }
+                },2000)
+            //}
+            
+            
+        }
+        xhr.send();
+        
+        // let blob = await fetch($(e).attr("data-id")).then(r => r.blob());
+        
+    }
 
 
     function onLevelChange(time) {

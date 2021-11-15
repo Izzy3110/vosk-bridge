@@ -43,4 +43,4 @@ class Client(object):
             self.ws.write_message("keep alive")
 
 if __name__ == "__main__":
-    client = Client("ws://192.168.2.102:2700", 5)
+    client = Client("ws://127.0.0.1:2700", 5)
