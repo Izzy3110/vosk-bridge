@@ -1,6 +1,9 @@
 .idea/
 __pycache__/
 components/__pycache__/
+components/__pycache__/*
+components/sio/__pycache__/*
+components/sio/__pycache__/
 logs/
 venv/
 tmp_wav.wav
