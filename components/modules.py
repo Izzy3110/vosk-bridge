@@ -108,17 +108,18 @@ class VoskServer(threading.Thread):
         print("VS")
         while self.running is True:
             if self.started is False:
-                with subprocess.Popen("python "+os.path.join("components", "asr_server.py"), shell=True,
-                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE) as self.ps:
-                    while True:
-                        error = self.ps.stderr.readline()
-                        output = error
-                        msg_ = output.decode().rstrip("\r\n")
-                        date_ = datetime.now().strftime("%d.%m.%Y %H:%M:%S.%f")[:-3]
-                        data_ = date_ + ": " + msg_
-                        self.log_to_file(data_)
-                        if self.ps.poll() is not None:
-                            break
+                if os.path.isfile(os.path.join("components", "asr_server.py")):
+                    with subprocess.Popen("python3 "+os.path.join("components", "asr_server.py"), shell=True,
+                                          stdout=subprocess.PIPE, stderr=subprocess.PIPE) as self.ps:
+                        while True:
+                            error = self.ps.stderr.readline()
+                            output = error
+                            msg_ = output.decode().rstrip("\r\n")
+                            date_ = datetime.now().strftime("%d.%m.%Y %H:%M:%S.%f")[:-3]
+                            data_ = date_ + ": " + msg_
+                            self.log_to_file(data_)
+                            if self.ps.poll() is not None:
+                                break
                 self.started = True
             time.sleep(1)
         self.vosk_log_file_f.close()
