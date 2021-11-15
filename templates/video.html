@@ -206,7 +206,7 @@
     var smoothingTimeConstant_ = 0.8;
     var output_pids_ = true
 
-    var socket = io();
+    var socket = io.connect();
     
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext("2d");
