@@ -27,29 +27,14 @@ async def get_my_sid(sid):
     await sio.emit('my_sid', sid, to=sid)
 
 
-async def send_data_vosk(uri, data):
-    async with websockets.connect(uri) as websocket:
-        #wf = open("components/vosk-server/websocket/test16k.wav", "rb")
-        #while True:
-        #    data = wf.read(8000)
-        #
-        #    if len(data) == 0:
-        #        break
-        #
-        await websocket.send(data)
-        print (await websocket.recv())
-
-        await websocket.send('{"eof" : 1}')
-        print (await websocket.recv())
-
 @sio.event
 async def audioData(sid, message):
     #await send_data_vosk('ws://127.0.0.1:2700', message["data"])
     print(len(message["data"]))
     # print(sid)
-    #with open("localfile.wav", "wb") as target_file_f:
-    #    target_file_f.write(message["data"])
-    #    target_file_f.close()
+    with open("localfile.wav", "wb") as target_file_f:
+        target_file_f.write(message["data"])
+        target_file_f.close()
         
     
 
